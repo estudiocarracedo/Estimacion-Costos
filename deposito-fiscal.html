@@ -280,8 +280,8 @@
     <div class="header-left">
       <div class="header-icon">🏭</div>
       <div>
-        <div class="header-title">DEPÓSITO FISCAL</div>
-        <div class="header-subtitle">Calculadora de Estadía · Panel de Control</div>
+        <div class="header-title">ESTUDIO CARRACEDO</div>
+        <div class="header-subtitle">Depósito Fiscal · Calculadora de Estadía</div>
       </div>
     </div>
     <div class="header-right">
@@ -386,6 +386,10 @@
       </div>
 
       <div class="field">
+        <label>Número de Carpeta</label>
+        <input type="text" id="inputCarpeta" placeholder="Ej: 2024-0123">
+      </div>
+      <div class="field">
         <label>Fecha de Ingreso</label>
         <input type="date" id="inputFecha" max="">
       </div>
@@ -444,7 +448,7 @@
         <table id="mainTable">
           <thead>
             <tr>
-              <th>Fecha Ingreso</th><th>Peso</th><th>Días</th><th>Tarifa/día</th><th>Total USD</th><th>Acción</th>
+              <th>Carpeta</th><th>Fecha Ingreso</th><th>Peso</th><th>Días</th><th>Tarifa/día</th><th>Total USD</th><th>Acción</th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -626,6 +630,7 @@ function renderizar() {
     const tr = document.createElement('tr');
     tr.style.animationDelay = (i * 40) + 'ms';
     tr.innerHTML = `
+      <td class="td-fecha" style="color:var(--cyan);font-weight:700">${r.carpeta || '—'}</td>
       <td class="td-fecha">${formatFecha(r.fecha)}</td>
       <td class="td-peso">${r.peso.toLocaleString('es-AR')} <span style="color:var(--text-muted);font-size:11px">kg</span></td>
       <td><span class="pill-dias ${pc}">${dias}d</span></td>
@@ -662,7 +667,7 @@ function actualizarKPIs() {
   document.getElementById('headerTotal').textContent = usd(tUSD);
   document.getElementById('tableBadge').textContent = n;
   document.getElementById('kpiTop').textContent = n ? usd(maxTotal) : '$0';
-  document.getElementById('kpiTopSub').textContent = maxReg ? `${formatFecha(maxReg.fecha)} · ${maxReg.peso}kg` : '—';
+  document.getElementById('kpiTopSub').textContent = maxReg ? `${maxReg.carpeta ? maxReg.carpeta+' · ' : ''}${formatFecha(maxReg.fecha)} · ${maxReg.peso}kg` : '—';
   document.getElementById('kpiAvgW').textContent = n ? (tPeso/n).toFixed(1) : '0';
   document.getElementById('kpiDem').textContent = dem;
   document.getElementById('kpiDemSub').textContent = dem ? `de ${n} registros` : 'sin demoras activas';
@@ -673,6 +678,7 @@ function actualizarKPIs() {
 // AGREGAR / ELIMINAR
 // ════════════════════════════════════════════════════
 function agregarEntrada() {
+  const cv = document.getElementById('inputCarpeta').value.trim();
   const fv = document.getElementById('inputFecha').value;
   const pv = document.getElementById('inputPeso').value;
   if (!fv) return mostrarError('Seleccioná una fecha de ingreso.');
@@ -682,8 +688,9 @@ function agregarEntrada() {
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   if (new Date(fv+'T00:00:00') > hoy) return mostrarError('La fecha no puede ser futura.');
   ocultarError();
-  registros.unshift({ id: uid(), fecha: fv, peso });
+  registros.unshift({ id: uid(), carpeta: cv, fecha: fv, peso });
   guardarDatos(); renderizar();
+  document.getElementById('inputCarpeta').value = '';
   document.getElementById('inputFecha').value = '';
   document.getElementById('inputPeso').value = '';
   document.getElementById('tarifaPreview').classList.remove('show');
@@ -711,9 +718,9 @@ function exportCSV() {
   if (!registros.length) { mostrarToast('No hay datos para exportar', 'e'); return; }
   const rows = registros.map(r => {
     const { dias, tarifa, total } = calcularTotal(r.fecha, r.peso);
-    return `${r.fecha},${r.peso},${dias},${tarifa.toFixed(2)},${total.toFixed(2)}`;
+    return `${r.carpeta||''},${r.fecha},${r.peso},${dias},${tarifa.toFixed(2)},${total.toFixed(2)}`;
   });
-  const blob = new Blob(['Fecha Ingreso,Peso (kg),Días,Tarifa/día (USD),Total (USD)\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['Carpeta,Fecha Ingreso,Peso (kg),Días,Tarifa/día (USD),Total (USD)\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `deposito_fiscal_${new Date().toISOString().slice(0,10)}.csv`;
   a.click(); URL.revokeObjectURL(a.href);
@@ -806,7 +813,7 @@ function renderCharts() {
   CI.A = new Chart(document.getElementById('chartA'), {
     type: 'bar',
     data: {
-      labels: registros.map(r => `${r.fecha.slice(5).replace('-','/')} · ${r.peso}kg`),
+      labels: registros.map(r => (r.carpeta ? r.carpeta + ' · ' : '') + `${r.fecha.slice(5).replace('-','/')} · ${r.peso}kg`),
       datasets: [{
         data: registros.map(r => +calcularTotal(r.fecha, r.peso).total.toFixed(2)),
         backgroundColor: 'rgba(0,200,255,0.18)',
